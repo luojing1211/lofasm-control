@@ -1,60 +1,89 @@
+#filename: unpack_dat.py
+#unpack_dat.py is meant to be a library of functions to be used to unpack and reduce 
+# the raw network data being dumped by the LoFASM ROACH board's LoFASM Baseband Recording
+# Firmware. 
+
 import struct,sys
 import numpy as np
 import ten_gbe_lib as tg
 
 
-
+#############################################################3
+#Begin class:lofasm_packet
 class lofasm_packet:
     
             
     def __init__(self,ack=0,pkt=0):
+        # When an instance of lofasm_packet is created with the default setting of pkt
+        #   then the class 'constructor' will simulate a LoFASM Packet instance 
+        #   with the data array filled with zeros. I expect that instead of zeros
+        #   we will want to perform padding with something more statistically significant
         if pkt==0:
             #if no data, then pad with zeros
+            #currently, a LoFASM network packet contains two 'streams'
+            #with 2048 elements in each.
             self.iDataStream = [1e-16]*2048
             self.qDataStream = [1e-16]*2048
             self.typeOfPacket = "Zero Padding"
-            #print "Adding " + self.typeOfPacket
             self.hdr_version = 600
-            
-            
             self.ack_num = ack + 100 #code for "this is a padded packet"
-        else:   
-            self.word_array = word_array = self.extract_words(pkt)
-            self.typeOfPacket = "Data Packet"
-            #print "Adding " + self.typeOfPacket
-            self.iDataStream = []
-            self.qDataStream = []
-            self.stream_record = []
-            iStream = []
-            qStream = []
-            for word in word_array:
-                input_stream = word.get_stream_id()
-                self.stream_record.append(input_stream)
-                if input_stream == 0:
-                    iStream.extend(word.get_data())
-                else:
-                    qStream.extend(word.get_data())
-            self.ack_num = (word_array[0]).get_ack_num()
+
+        else: #pkt != 0
+            #if pkt is populated then real data exists that needs to be converted to 
+            # our LoFASM data type
+            
+            #extract each 64bit word into an array
+            #self.word_array = word_array = self.extract_words(pkt) #type <list> : 
+            word_array = self.extract_words(pkt)                #var_type : <list>
+            self.typeOfPacket = "Data Packet"                   #set packet type
+            
+            iStream = []                                        #set to empty list
+            qStream = []                                        #set to empty list..to be appended to below
+            self.iDataStream = []                               #set to empty list
+            self.qDataStream = []                               #set to empty list...i don't think these are needed
+            self.stream_record = []                             #save stream id's for debugging purposes
+                                                                   #we can probably do away with this 
+                                                                   #or implement a smoother solution
+            
+            self.ack_num = (word_array[0]).get_ack_num()        #get packet's ack number from first word
   
-            self.hdr_version = (word_array[0]).get_hdr_version()
-            self.iDataStream = iStream
+            self.hdr_version = (word_array[0]).get_hdr_version() #get header version from first packet
+            
+            
+            for word in word_array:                             #cycle through lofasm_word objects
+            #begin for    
+                input_stream = word.get_stream_id()             #get this word's stream id
+                                                                    #   currently [0,1] -> [I,Q]
+                self.stream_record.append(input_stream)         #record this word's stream id...why? idk
+                
+                if input_stream == 0:                           #this is input I
+                    iStream.extend(word.get_data())             #extract word's data and append to iStream
+                else:                                           #this is input Q
+                    qStream.extend(word.get_data())             #extract word's data and append to qStream
+            #endfor
+
+                                                                 
+            self.iDataStream = iStream                          #set stream data to object variable
             self.qDataStream = qStream
 
     def extract_words(self,pkt):
-        pkt_len = len(pkt)
-        num_words = (pkt_len / 8 )-1
+        pkt_len = len(pkt)                                  #determine packet length
+        num_words = (pkt_len / 8 )-1                        #num_words = N-1 since the first word 
+                                                            #   will be handled individually
         word_array = []
-        word_array.append(lofasm_word(pkt[:8])) #1st word
-        for i in range(num_words):
-            index = (i+1)*8
-            next_word = pkt[index:index+8]
-            word_array.append(lofasm_word(next_word))
-        
-        return word_array
+        word_array.append(lofasm_word(pkt[:8]))             #1st word: extract first 8bytes or 64bits or 1 'word'
 
-            
-                        
-            
+        for i in range(num_words):
+            index = (i+1)*8                                 #start at 1 and progress at 8byte intervals
+            next_word = pkt[index:index+8]                  #obtain next 'word'
+            word_array.append(lofasm_word(next_word))       #append new word to word_array
+        
+        return word_array                                   #return word_array type: <list>
+
+#end of class: lofasm_packet            
+#################################################################3
+#Begin class:lofasm_word
+
 class lofasm_word:
     def __init__(self,word=0):
         if word==0:
@@ -83,6 +112,8 @@ class lofasm_word:
         return self.hdr_version
     def get_stream_id(self):
         return self.stream_id
+# end of class: lofasm_word
+#####################################################################33
 def toggle(bit):
     if bit:
         return 0
