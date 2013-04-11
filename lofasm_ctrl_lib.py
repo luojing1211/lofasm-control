@@ -73,7 +73,7 @@ def bbr_run(MAX_PKTS,sock,rec=0):
     y_que = np.array(streams[1])
     #eye_spect = la.getSpectrum(y_eye)
     #que_spect = la.getSpectrum(y_que)
-
+    
     #perform averaging
     fft_len = 2048
     eye_spect_avg = la.getFFTavg(y_eye,fft_len)
@@ -82,14 +82,37 @@ def bbr_run(MAX_PKTS,sock,rec=0):
     #print 'exiting from bbr_run().'
     #exit()
     #begin plotting madness
+    
+    eye_timeseries = y_eye[:100]
+    que_timeseries = y_que[:100]
+    
     plt.ion()
-    fig = plt.figure()
-    ax1 = fig.add_subplot(211)
-    ax2 = fig.add_subplot(212)
-    line1, = ax1.plot(freqs,10*np.log10(eye_spect_avg),'b-')
-    line2, = ax2.plot(freqs,10*np.log10(que_spect_avg),'g-')
+    fig = plt.figure(1)
+
+    ax_eye_spect = fig.add_subplot(321)
+    plt.title('I: Power Spectrum (linear scale)')
+    ax_eye_spect_log  = fig.add_subplot(323)
+    plt.title('I: Power Spectrum (log scale)')
+    ax_que_spect = fig.add_subplot(322)
+    plt.title('Q: Power Spectrum (linear scale)')
+    ax_que_spect_log = fig.add_subplot(324)
+    plt.title('Q: Power Spectrum (log scale)')
+   
+    line_eye_spect_log, = ax_eye_spect_log.plot(freqs,10*np.log10(eye_spect_avg),'b-')
+    line_que_spect_log, = ax_que_spect_log.plot(freqs,10*np.log10(que_spect_avg),'g-')
+    line_eye_spect, = ax_eye_spect.plot(freqs,(eye_spect_avg),'b-')
+    line_que_spect, = ax_que_spect.plot(freqs,(que_spect_avg),'g-')
+
+    ax_eye_timeseries = fig.add_subplot(325)
+    plt.title('I: Time Series')
+    ax_que_timeseries = fig.add_subplot(326)
+    plt.title('Q: Time Series')
+
+    line_eye_timeseries, = ax_eye_timeseries.plot(eye_timeseries,'*')
+    line_que_timeseries, = ax_que_timeseries.plot(que_timeseries,'*')
+    raw_input('Press ENTER to continue..')
     fig.canvas.draw()
-    print "input I:",min(10*np.log10(eye_spect_avg)),":",max(10*np.log10(eye_spect_avg)) 
+    #print "input I:",min(10*np.log10(eye_spect_avg)),":",max(10*np.log10(eye_spect_avg)) 
 
     if rec: #this is the end of the road if we want to write to disk...for now
         raw_input('press enter to continue.')
@@ -103,8 +126,8 @@ def bbr_run(MAX_PKTS,sock,rec=0):
             
             y_eye = np.array(streams[0])
             y_que = np.array(streams[1])
-            print 'yI: ',str(y_eye[:10])
-            print 'yQ: ',str(y_que[:10])
+            #print 'yI: ',str(y_eye[:10])
+            #print 'yQ: ',str(y_que[:10])
             #eye_spect = la.getSpectrum(y_eye)
             #que_spect = la.getSpectrum(y_que)
 
@@ -112,11 +135,18 @@ def bbr_run(MAX_PKTS,sock,rec=0):
             
             eye_spect_avg = la.getFFTavg(y_eye,fft_len)
             que_spect_avg = la.getFFTavg(y_que,fft_len)
-            line1.set_ydata(10*np.log10(eye_spect_avg))
-            plt.title('bbr')
-            line2.set_ydata(10*np.log10(que_spect_avg))
+            eye_timeseries = y_eye[:100]
+            que_timeseries = y_que[:100]
 
-            print "input I:",min(10*np.log10(eye_spect_avg)),":",max(10*np.log10(eye_spect_avg)) 
+            #update plot data
+            line_eye_spect.set_ydata(eye_spect_avg)
+            line_eye_spect_log.set_ydata(10*np.log10(eye_spect_avg))
+            line_que_spect.set_ydata(que_spect_avg)
+            line_que_spect_log.set_ydata(10*np.log10(que_spect_avg))
+            line_eye_timeseries.set_ydata(eye_timeseries)
+            line_que_timeseries.set_ydata(que_timeseries)
+
+            #print "input I:",min(10*np.log10(eye_spect_avg)),":",max(10*np.log10(eye_spect_avg)) 
             fig.canvas.draw()
             time.sleep(3)
         except KeyboardInterrupt:

@@ -37,8 +37,8 @@ class lofasm_packet:
             word_array = self.extract_words(pkt)                #var_type : <list>
             self.typeOfPacket = "Data Packet"                   #set packet type
             
-            iStream = []                                        #set to empty list
-            qStream = []                                        #set to empty list..to be appended to below
+            #iStream = []                                        #set to empty list
+            #qStream = []                                        #set to empty list..to be appended to below
             self.iDataStream = []                               #set to empty list
             self.qDataStream = []                               #set to empty list...i don't think these are needed
             self.stream_record = []                             #save stream id's for debugging purposes
@@ -52,19 +52,22 @@ class lofasm_packet:
             
             for word in word_array:                             #cycle through lofasm_word objects
             #begin for    
-                input_stream = word.get_stream_id()             #get this word's stream id
+                #input_stream = word.get_stream_id()             #get this word's stream id
                                                                     #   currently [0,1] -> [I,Q]
-                self.stream_record.append(input_stream)         #record this word's stream id...why? idk
+                new_data = word.get_data()
+                self.iDataStream.extend(new_data[:2])
+                self.qDataStream.extend(new_data[2:])
+            
+                ##if input_stream == 0:                           #this is input I
+                #    iStream.extend(word.get_data())             #extract word's data and append to iStream
+                #else:                                           #this is input Q
+                #    qStream.extend(word.get_data())             #extract word's data and append to qStream
                 
-                if input_stream == 0:                           #this is input I
-                    iStream.extend(word.get_data())             #extract word's data and append to iStream
-                else:                                           #this is input Q
-                    qStream.extend(word.get_data())             #extract word's data and append to qStream
             #endfor
 
                                                                  
-            self.iDataStream = iStream                          #set stream data to object variable
-            self.qDataStream = qStream
+            #self.iDataStream = iStream                          #set stream data to object variable
+            #self.qDataStream = qStream
 
     def extract_words(self,pkt):
         pkt_len = len(pkt)                                  #determine packet length
@@ -88,7 +91,7 @@ class lofasm_word:                                          #class to facilitate
     def __init__(self,word=0):
         if word==0:                                         #if there is no data to process make everything zero
                                                                 #this mode is not yet used in the current implementation
-            self.stream_id = 0
+            #self.stream_id = 0
             self.hdr_version = 0
             self.ack_num = 0
             self.dsamp1 = 0
@@ -96,8 +99,8 @@ class lofasm_word:                                          #class to facilitate
             self.dsamp3 = 0
             self.dsamp4 = 0
         else:
-            stream_id,hdr_ver,ack_cnt,data = parseWord(word)    #parse raw word and extract encapsulated info
-            self.stream_id = stream_id                          #set metadata
+            hdr_ver,ack_cnt,data = parseWord(word)    #parse raw word and extract encapsulated info
+            #self.stream_id = stream_id                          #set metadata
             self.hdr_version = hdr_ver
             self.ack_num = ack_cnt
             self.dsamp1 = data[0]                               #make sampled data part of the object
@@ -114,8 +117,6 @@ class lofasm_word:                                          #class to facilitate
     def get_hdr_version(self):
         return self.hdr_version
 
-    def get_stream_id(self):
-        return self.stream_id
 # end of class: lofasm_word
 #####################################################################
 #begin toggle
@@ -210,12 +211,10 @@ def bit2num(word,bit_len=16,twos_comp = 1):
 def parseWord(word):
     '''
     Parse and extract LoFASM data from an 8 byte (64bit) binary word.
-    Usage: parseWord(word)
-    '''
+    Usage: parseWord(word) '''
     #header
     #bit map
-    #0: stream id
-    #1-3: hdr_ver
+    #0-3: hdr_ver
     #4-7: ack_cnt
     #8-63: data
     word_num = np.array(struct.unpack('>Q',word))               #unpack data as unsigned long long (one large number)
@@ -224,8 +223,8 @@ def parseWord(word):
     data_bitmap = word_bitmap[8:]                               #everything else is data (56 bits, 4*14bits)
     
     #header population
-    stream_id = hdr_bitmap[0]                                   #stream (I&Q) id assignment
-    hdr_ver_bitmap = hdr_bitmap[1:4]                            #header version from ROACH
+    #stream_id = hdr_bitmap[0]                                   #stream (I&Q) id assignment
+    hdr_ver_bitmap = hdr_bitmap[:4]                            #header version from ROACH
     ack_cnt_bitmap = hdr_bitmap[4:]                             #the ack number occupies the last 4 bits of the header
 
     snap_bitmap = []                                            #extract all four data samples (voltage snapshots)
@@ -238,7 +237,7 @@ def parseWord(word):
     #print hdr_ver_bitmap
     #print ack_cnt_bitmap
     #print len(snap_bitmap[0])
-    hdr_ver = bit2num(hdr_ver_bitmap,bit_len=3,twos_comp=0)     #convert metadata from bitmaps to real numbers
+    hdr_ver = bit2num(hdr_ver_bitmap,bit_len=4,twos_comp=0)     #convert metadata from bitmaps to real numbers
     ack_cnt = bit2num(ack_cnt_bitmap,bit_len=4,twos_comp=0)
     
     
@@ -247,7 +246,7 @@ def parseWord(word):
     
     for i in range(4):
         data[i] = bit2num(snap_bitmap[i],bit_len=14)
-    return stream_id,hdr_ver,ack_cnt,data
+    return hdr_ver,ack_cnt,data
 
 #end parseWord
 ####################################################
@@ -308,7 +307,7 @@ def gen_pkt_streams(pkt_array):
         (data[1]).extend(pkt.qDataStream)
         ilen+=len(pkt.iDataStream)
         qlen+=len(pkt.qDataStream)
-    print "Generated I-Stream: %i Values" % ilen
-    print "Generated Q-stream: %i Values" % qlen
+    #print "Generated I-Stream: %i Values" % ilen
+    #print "Generated Q-stream: %i Values" % qlen
     #print str(len(data[0]))+" "+str(len(data[1]))
     return data

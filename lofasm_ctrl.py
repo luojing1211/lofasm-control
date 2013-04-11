@@ -6,7 +6,7 @@ import lofasm_ctrl_lib as llib
 
 
 ####################################################
-if __name__=='__main__':
+if __name__=='__main__':                                #if run as standalone program...
     from optparse import OptionParser
 
     #option parser
