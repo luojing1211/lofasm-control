@@ -41,16 +41,17 @@ def getFFTavg(y,fft_len):
     numAvgs = int(np.floor(float(N)/fft_len))    #this value will get truncated 
 
     #begin forloop
-    for i in range(numAvgs):
+    for i in range(numAvgs-1):
         index = i*fft_len           #increment in multiples of fft_len (start at zero)
-        if i == (numAvgs - 1):      #if at last subint (piece of the data)
-            subint = y[(-1*fft_len):]   #then just assign the rest of the array to subint
-        else:
-            subint = y[index:index+fft_len] #otherwise only use the next window of length fft_len
+        #if i == (numAvgs - 1):      #if at last subint (piece of the data)
+        #    subint = y[(-1*fft_len):]   #then just assign the rest of the array to subint
+        subint = y[index:index+fft_len] #otherwise only use the next window of length fft_len
         
         subfft = getSpectrum(subint)        #acquire power spectrum
         fft_sum += subfft                   #and add
     #end forloop
+    
+    fft_sum += getSpectrum(y[-1*fft_len:])  #get last window
 
     fft_avg = fft_sum/float(numAvgs)        #compute avg for each bin
 
