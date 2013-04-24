@@ -71,17 +71,17 @@ class lofasm_packet:
 
     def extract_words(self,pkt):
         pkt_len = len(pkt)                                  #determine packet length
-        num_words = (pkt_len / 8 )-1                        #num_words = N-1 since the first word 
+        num_words = int(np.floor( float(pkt_len) / 8 ) - 1)    #num_words = N-1 since the first word 
                                                             #   will be handled individually
         word_array = []
-        word_array.append(lofasm_word(pkt[:8]))             #1st word: extract first 8bytes or 64bits or 1 'word'
+        word_array.append(lofasm_word(pkt[:8]))             #1st word: extract first 8bytes or 64bits or one 'word'
 
         for i in range(num_words):
             index = (i+1)*8                                 #start at 1 and progress at 8byte intervals
             next_word = pkt[index:index+8]                  #obtain next 'word'
-            word_array.append(lofasm_word(next_word))       #append new word to word_array
+            word_array.append(lofasm_word(next_word))       #append new LoFASM Word to word_array
         
-        return word_array                                   #return word_array type: <list>
+        return word_array                                   #return word_array type: <list> with each element being a lofasm_word instance
 
 #end of class: lofasm_packet            
 #################################################################3
@@ -211,7 +211,9 @@ def bit2num(word,bit_len=16,twos_comp = 1):
 def parseWord(word):
     '''
     Parse and extract LoFASM data from an 8 byte (64bit) binary word.
-    Usage: parseWord(word) '''
+    
+    parseWord(word)
+    '''
     #header
     #bit map
     #0-3: hdr_ver
@@ -271,7 +273,7 @@ def get_ack_diff(prev_ack,curr_ack,lo_ack=0,hi_ack=15):
     '''
     Calculate the difference (in units of ack #'s) between 
     any two ack numbers.
-    
+
     get_ack_diff(prev_ack,curr_ack,lo_ack=0,hi_ack=15)
     '''
     if curr_ack == gen_next_ack(prev_ack,lo_ack,hi_ack):
@@ -291,14 +293,14 @@ def get_ack_diff(prev_ack,curr_ack,lo_ack=0,hi_ack=15):
 #####################################################
 def gen_padded_array(pkt_array):
     padded_arr = []
-    padded_arr.append(pkt_array[0]) #get first packet
+    padded_arr.append(pkt_array[0])                                     #get first packet
     prev_ack = padded_arr[0].ack_num
     pkt_array_len = len(pkt_array)
     for i in range(pkt_array_len - 1):
         index = i+1
         cur_ack = pkt_array[index].ack_num
         ack_diff = get_ack_diff(prev_ack,cur_ack)
-        if (not ack_diff): #if ack_diff==0; no missed pkts
+        if (not ack_diff):                                      #if ack_diff==0; no missed pkts
             padded_arr.append(pkt_array[index])
             prev_ack = gen_next_ack(prev_ack)
         elif bool(ack_diff):
@@ -310,17 +312,26 @@ def gen_padded_array(pkt_array):
     return padded_arr
 
 #####################################################
+#Begin gen_pkt_streams
 def gen_pkt_streams(pkt_array):
+    '''
+    Iterate through pkt_array and separate the I & Q data streams in each
+    packet (each packet is an element in pkt_array) into contiguous 
+    arrays of their own.
+
+    gen_pkt_streams(pkt_array)
+    '''
     data=[[],[]]    
-    ilen = 0
-    qlen = 0
-    
-    for pkt in pkt_array:
-        (data[0]).extend(pkt.iDataStream)
-        (data[1]).extend(pkt.qDataStream)
-        ilen+=len(pkt.iDataStream)
+    ilen = 0                                    # length of I data array
+    qlen = 0                                    # length of Q data array
+                
+    for pkt in pkt_array:                       
+        (data[0]).extend(pkt.iDataStream)       #extract and append I Data Stream
+        (data[1]).extend(pkt.qDataStream)       #extract and append Q Data Stream
+        ilen+=len(pkt.iDataStream)              #increment lengths
         qlen+=len(pkt.qDataStream)
     #print "Generated I-Stream: %i Values" % ilen
     #print "Generated Q-stream: %i Values" % qlen
     #print str(len(data[0]))+" "+str(len(data[1]))
     return data
+#end: gen_pkt_streams
