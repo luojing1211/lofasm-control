@@ -268,6 +268,12 @@ def gen_prev_ack(curr_ack,lo_ack=0,hi_ack=15):
 #####################################################
 #begin get_ack_diff
 def get_ack_diff(prev_ack,curr_ack,lo_ack=0,hi_ack=15):
+    '''
+    Calculate the difference (in units of ack #'s) between 
+    any two ack numbers.
+    
+    get_ack_diff(prev_ack,curr_ack,lo_ack=0,hi_ack=15)
+    '''
     if curr_ack == gen_next_ack(prev_ack,lo_ack,hi_ack):
         return 0
     else:
