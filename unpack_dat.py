@@ -168,7 +168,7 @@ def bit2num(word,bit_len=16,twos_comp = 1):
         #end forloop
 
         return num                                      #type <int>
-    else:                                               #if in two's completement... work a bit harder
+    elif twos_comp:                                               #if in two's complement... work a bit harder
         
         sign = word[0]                                  #retrieve sign bit
         
@@ -251,18 +251,22 @@ def parseWord(word):
 #end parseWord
 ####################################################
 #begin gen_next_ack
-def gen_next_ack(curr_ack,lo_ack=0,hi_ack=15): 
-    if curr_ack >= hi_ack:
-        return lo_ack
+def gen_next_ack(curr_ack,lo_ack=0,hi_ack=15):                  #16bit counter -> [0,15]  
+    if curr_ack >= hi_ack:                                      #if at max or higher than max allowed value, reset to low val
+        return lo_ack                       
     else:
-        return curr_ack + 1
+        return curr_ack + 1                                     #otherwise: increment number
 #end gen_next_ack
 #####################################################
-def gen_prev_ack(curr_ack,lo_ack=0,hi_ack=15):
-    if curr_ack == lo_ack:
+#begin gen_prev_ack
+def gen_prev_ack(curr_ack,lo_ack=0,hi_ack=15):                  
+    if curr_ack == lo_ack:                                      #if at the lowest possible value then previous ack was max
         return hi_ack
-    else:
+    else:                                                       #otherwise: decrement
         return curr_ack - 1
+#end gen_prev_ack
+#####################################################
+#begin get_ack_diff
 def get_ack_diff(prev_ack,curr_ack,lo_ack=0,hi_ack=15):
     if curr_ack == gen_next_ack(prev_ack,lo_ack,hi_ack):
         return 0
@@ -277,6 +281,8 @@ def get_ack_diff(prev_ack,curr_ack,lo_ack=0,hi_ack=15):
                 prev_ack = gen_next_ack(prev_ack,lo_ack,hi_ack)
                 mis_pkts+=1
         return mis_pkts
+#end get_ack_diff
+#####################################################
 def gen_padded_array(pkt_array):
     padded_arr = []
     padded_arr.append(pkt_array[0]) #get first packet
@@ -297,6 +303,7 @@ def gen_padded_array(pkt_array):
             prev_ack = gen_next_ack(prev_ack)
     return padded_arr
 
+#####################################################
 def gen_pkt_streams(pkt_array):
     data=[[],[]]    
     ilen = 0
