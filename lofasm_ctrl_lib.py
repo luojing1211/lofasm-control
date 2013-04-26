@@ -26,19 +26,9 @@ def bbr_snap(sock,MAX_PKTS,rec=0):
         N=len(pkt_array)
         #j=1 #progress bar
         for i in range(N):
-        #    if j==10:
-        #        percent_complete = ((i+1.0)/N)*100.0
-        #        print "\r %2.2f" % percent_complete,
-        #        print "% complete"
-        #        j=1
-        #    else:
-        #        j+=1
-
-        #    sys.stdout.flush()
-            
             #conversion to LoFASM Packet takes place here
-            pkt_array[i] = ud.lofasm_packet(pkt=pkt_array[i])
-        #endfor
+            pkt_array[i] = ud.lofasm_packet(pkt=pkt_array[i])  #[ud.lofasm_packet(x) for x in pkt_array]
+        #ENDFOR
         
         #by now pkt_array now contains LoFASM Packets
         #instead of raw data packets
@@ -195,6 +185,7 @@ def spect_config(fpga,acc_len=262144,gain=int(0xffffffff),rec=0):
         return even_hndl,odd_hndl
     else:
         pass
+
 def get_spect_data(fpga,evenHandles=[],oddHandles=[]):
     acc_n = fpga.read_uint('acc_cnt')
     even_i = fpga.read('even_i',1024*4,0)

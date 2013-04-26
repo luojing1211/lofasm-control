@@ -50,24 +50,13 @@ class lofasm_packet:
             self.hdr_version = (word_array[0]).get_hdr_version() #get header version from first packet
             
             
-            for word in word_array:                             #cycle through lofasm_word objects
-            #begin for    
-                #input_stream = word.get_stream_id()             #get this word's stream id
+            for word in word_array:                                
                                                                     #   currently [0,1] -> [I,Q]
                 new_data = word.get_data()
                 self.iDataStream.extend(new_data[:2])
                 self.qDataStream.extend(new_data[2:])
-            
-                ##if input_stream == 0:                           #this is input I
-                #    iStream.extend(word.get_data())             #extract word's data and append to iStream
-                #else:                                           #this is input Q
-                #    qStream.extend(word.get_data())             #extract word's data and append to qStream
-                
-            #endfor
+            #ENDFOR
 
-                                                                 
-            #self.iDataStream = iStream                          #set stream data to object variable
-            #self.qDataStream = qStream
 
     def extract_words(self,pkt):
         pkt_len = len(pkt)                                  #determine packet length
@@ -89,24 +78,22 @@ class lofasm_packet:
 
 class lofasm_word:                                          #class to facilitate handling of a single 8byte word
     def __init__(self,word=0):
-        if word==0:                                         #if there is no data to process make everything zero
+        if word == 0:                                         #if there is no data to process make everything zero
                                                                 #this mode is not yet used in the current implementation
-            #self.stream_id = 0
-            self.hdr_version = 0
-            self.ack_num = 0
-            self.dsamp1 = 0
-            self.dsamp2 = 0
-            self.dsamp3 = 0
-            self.dsamp4 = 0
+            self.hdr_version    = 0
+            self.ack_num        = 0
+            self.dsamp1         = 0
+            self.dsamp2         = 0
+            self.dsamp3         = 0
+            self.dsamp4         = 0
         else:
-            hdr_ver,ack_cnt,data = parseWord(word)    #parse raw word and extract encapsulated info
-            #self.stream_id = stream_id                          #set metadata
-            self.hdr_version = hdr_ver
-            self.ack_num = ack_cnt
-            self.dsamp1 = data[0]                               #make sampled data part of the object
-            self.dsamp2 = data[1]
-            self.dsamp3 = data[2]
-            self.dsamp4 = data[3]           
+            hdr_ver,ack_cnt,data =   parseWord(word)    #parse raw word and extract encapsulated info
+            self.hdr_version     =   hdr_ver
+            self.ack_num         =   ack_cnt
+            self.dsamp1          =   data[0]                      #make sampled data part of the object
+            self.dsamp2          =   data[1]
+            self.dsamp3          =   data[2]
+            self.dsamp4          =   data[3]           
 
     def get_data(self):                                         #interface methods for lofasm_word class
         return[self.dsamp1,self.dsamp2,self.dsamp3,self.dsamp4]
@@ -211,29 +198,31 @@ def bit2num(word,bit_len=16,twos_comp = 1):
 def parseWord(word):
     '''
     Parse and extract LoFASM data from an 8 byte (64bit) binary word.
+    parseWord's input, word, should be a 64bit binary string.
+    parseWord assumes the following bitmap for each word:
+
+        Zero-Based Bit Number                                  Meaning
+                [00:03]                               Header/DataFormat Version               *Part of Header
+                [04:07]                         ACK Number (a.k.a. Packet Identification)     *Part of Header 
+                [08:63]                                         Data                          *Payload
     
-    parseWord(word)
+    Usage: hdr_ver, ack_cnt, data = parseWord(word)
     '''
-    #header
-    #bit map
-    #0-3: hdr_ver
-    #4-7: ack_cnt
-    #8-63: data
     word_num = np.array(struct.unpack('>Q',word))               #unpack data as unsigned long long (one large number)
-    word_bitmap = num2bit(word_num,bit_len=64)                  #generate bitmap for this word
+    word_bitmap = num2bit(word_num,bit_len=64)                  #generate bitmap for this large word
     hdr_bitmap = word_bitmap[:8]                                #extract header info from first byte
     data_bitmap = word_bitmap[8:]                               #everything else is data (56 bits, 4*14bits)
     
     #header population
     #stream_id = hdr_bitmap[0]                                   #stream (I&Q) id assignment
-    hdr_ver_bitmap = hdr_bitmap[:4]                            #header version from ROACH
+    hdr_ver_bitmap = hdr_bitmap[:4]                            #header version from ROACH board
     ack_cnt_bitmap = hdr_bitmap[4:]                             #the ack number occupies the last 4 bits of the header
 
     snap_bitmap = []                                            #extract all four data samples (voltage snapshots)
-    snap_bitmap.append(data_bitmap[:14])                            #and append to an array in order
-    snap_bitmap.append(data_bitmap[14:28])
-    snap_bitmap.append(data_bitmap[28:42])
-    snap_bitmap.append(data_bitmap[42:])
+    snap_bitmap.append(  data_bitmap[:14]   )                            #and append to an array in order
+    snap_bitmap.append(  data_bitmap[14:28] )
+    snap_bitmap.append(  data_bitmap[28:42] )
+    snap_bitmap.append(  data_bitmap[42:]   )
 
     #print stream_id
     #print hdr_ver_bitmap
@@ -315,7 +304,7 @@ def gen_padded_array(pkt_array):
 #Begin gen_pkt_streams
 def gen_pkt_streams(pkt_array):
     '''
-    Iterate through pkt_array and separate the I & Q data streams in each
+    Iterate through pkt_array (array of lofasm_packet objects) and separate the I & Q data streams in each
     packet (each packet is an element in pkt_array) into contiguous 
     arrays of their own.
 
