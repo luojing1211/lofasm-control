@@ -209,34 +209,34 @@ def parseWord(word):
     Usage: hdr_ver, ack_cnt, data = parseWord(word)
     '''
     word_num = np.array(struct.unpack('>Q',word))               #unpack data as unsigned long long (one large number)
-    word_bitmap = num2bit(word_num,bit_len=64)                  #generate bitmap for this large word
-    hdr_bitmap = word_bitmap[:8]                                #extract header info from first byte
-    data_bitmap = word_bitmap[8:]                               #everything else is data (56 bits, 4*14bits)
-    
-    #header population
-    #stream_id = hdr_bitmap[0]                                   #stream (I&Q) id assignment
-    hdr_ver_bitmap = hdr_bitmap[:4]                            #header version from ROACH board
-    ack_cnt_bitmap = hdr_bitmap[4:]                             #the ack number occupies the last 4 bits of the header
+    b14_max = long(16383) #(2**14) - 1
+    b04_max = long(15)    #(2**4) - 1
 
-    snap_bitmap = []                                            #extract all four data samples (voltage snapshots)
-    snap_bitmap.append(  data_bitmap[:14]   )                            #and append to an array in order
-    snap_bitmap.append(  data_bitmap[14:28] )
-    snap_bitmap.append(  data_bitmap[28:42] )
-    snap_bitmap.append(  data_bitmap[42:]   )
+    #generate bit masks data extraction
+    mask={}
+    mask['dsamp4'] = b14_max                   
+    mask['dsamp3'] = mask['dsamp4']    << 14
+    mask['dsamp2'] = mask['dsamp3']    << 14
+    mask['dsamp1'] = mask['dsamp2']    << 14
+    mask['ack']    = b04_max           << 56
+    mask['hdr']    = mask['ack']       << 4
 
-    #print stream_id
-    #print hdr_ver_bitmap
-    #print ack_cnt_bitmap
-    #print len(snap_bitmap[0])
-    hdr_ver = bit2num(hdr_ver_bitmap,bit_len=4,twos_comp=0)     #convert metadata from bitmaps to real numbers
-    ack_cnt = bit2num(ack_cnt_bitmap,bit_len=4,twos_comp=0)
-    
-    
-    data=[[]]*4                                                 #to hold sampled data; i forgot why i didn't just use
-                                                                # data=[0]*4 since bit2num returns int
-    
-    for i in range(4):
-        data[i] = bit2num(snap_bitmap[i],bit_len=14)
+    #apply masks and "heterodyne" back down to sensible values
+    hdr_ver_raw = (word & mask['hdr'])     >> 60
+    ack_num_raw = (word & mask['ack'])     >> 56
+    dsamp1_raw  = (word & mask['dsamp1'])  >> 42 
+    dsamp2_raw  = (word & mask['dsamp2'])  >> 28
+    dsamp3_raw  = (word & mask['dsamp3'])  >> 14
+    dsamp4_raw  = (word & mask['dsamp4'])  >> 00
+
+    hdr_ver = convert_twoscomp2int(hdr_ver_raw,4)
+    ack_num = convert_twoscomp2int(ack_num_raw,4)
+    dsamp1  = convert_twoscomp2int(dsamp1_raw,14)
+    dsamp2  = convert_twoscomp2int(dsamp2_raw,14)
+    dsamp3  = convert_twoscomp2int(dsamp3_raw,14)
+    dsamp4  = convert_twoscomp2int(dsamp4_raw,14)
+
+    data = [dsamp1,dsamp2,dsamp3,dsamp4]
     return hdr_ver,ack_cnt,data
 
 #end parseWord
@@ -324,3 +324,22 @@ def gen_pkt_streams(pkt_array):
     #print str(len(data[0]))+" "+str(len(data[1]))
     return data
 #end: gen_pkt_streams
+#####################################################
+#begin convert_twoscomp2int
+def convert_twoscomp2int(word,num_bits):
+    try:
+        mask = [2**i for i in range(num_bits)]
+    
+        #get MSbit value first
+        total = -1 * isset(mask[num_bits-1]&word) * (2**(num_bits-1)) \
+         + sum([(isset(mask[i] & word) * (2**i)) for i in range(num_bits-1)])
+    except GeneralError as err:
+        print "unpack_dat/binParseWordTC: excepted GeneralError!"
+    return total
+#end convert_twoscomp2int
+#####################################################
+#begin isset
+def isset(val):
+    return 1 if val>0 else 0
+#end isset
+#####################################################
