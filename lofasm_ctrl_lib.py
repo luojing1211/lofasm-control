@@ -29,11 +29,11 @@ def bbr_snap(sock,MAX_PKTS,rec=0):
             #conversion to LoFASM Packet takes place here
             pkt_array[i] = ud.lofasm_packet(pkt=pkt_array[i])  #[ud.lofasm_packet(x) for x in pkt_array]
         #ENDFOR
-        
+#        print 'hi'        
         #by now pkt_array now contains LoFASM Packets
         #instead of raw data packets
         padded_pkt_array = ud.gen_padded_array(pkt_array)
-
+ #       print 'lo'
         total_packets = len(padded_pkt_array)
         num_padded = float(la.getNumPad(padded_pkt_array))
         num_data = total_packets - num_padded

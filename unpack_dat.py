@@ -46,6 +46,7 @@ class lofasm_packet:
                                                                    #or implement a smoother solution
             
             self.ack_num = (word_array[0]).get_ack_num()        #get packet's ack number from first word
+            #print "lofasmPacket: %i" %self.ack_num
   
             self.hdr_version = (word_array[0]).get_hdr_version() #get header version from first packet
             
@@ -208,7 +209,7 @@ def parseWord(word):
     
     Usage: hdr_ver, ack_cnt, data = parseWord(word)
     '''
-    word_num = np.array(struct.unpack('>Q',word))               #unpack data as unsigned long long (one large number)
+    word = np.array(struct.unpack('>Q',word))               #unpack data as unsigned long long (one large number)
     b14_max = long(16383) #(2**14) - 1
     b04_max = long(15)    #(2**4) - 1
 
@@ -229,15 +230,15 @@ def parseWord(word):
     dsamp3_raw  = (word & mask['dsamp3'])  >> 14
     dsamp4_raw  = (word & mask['dsamp4'])  >> 00
 
-    hdr_ver = convert_twoscomp2int(hdr_ver_raw,4)
-    ack_num = convert_twoscomp2int(ack_num_raw,4)
+    hdr_ver = convert_twoscomp2int(hdr_ver_raw,5)
+    ack_num = convert_twoscomp2int(ack_num_raw,5)
     dsamp1  = convert_twoscomp2int(dsamp1_raw,14)
     dsamp2  = convert_twoscomp2int(dsamp2_raw,14)
     dsamp3  = convert_twoscomp2int(dsamp3_raw,14)
     dsamp4  = convert_twoscomp2int(dsamp4_raw,14)
 
     data = [dsamp1,dsamp2,dsamp3,dsamp4]
-    return hdr_ver,ack_cnt,data
+    return hdr_ver,ack_num,data
 
 #end parseWord
 ####################################################
@@ -285,13 +286,19 @@ def gen_padded_array(pkt_array):
     padded_arr.append(pkt_array[0])                                     #get first packet
     prev_ack = padded_arr[0].ack_num
     pkt_array_len = len(pkt_array)
+    #print "starting ack: %i" %prev_ack
+    #print "pkt_array_len: %i" % pkt_array_len
     for i in range(pkt_array_len - 1):
         index = i+1
+        #print "index: %i" %index
         cur_ack = pkt_array[index].ack_num
         ack_diff = get_ack_diff(prev_ack,cur_ack)
+        #print "cur_ack: %i" %cur_ack
+        #print "ack_diff: %i" % ack_diff
         if (not ack_diff):                                      #if ack_diff==0; no missed pkts
             padded_arr.append(pkt_array[index])
             prev_ack = gen_next_ack(prev_ack)
+            #print "prev_ack: %i" %prev_ack
         elif bool(ack_diff):
             for j in range(ack_diff):
                 padded_arr.append(lofasm_packet(gen_next_ack(prev_ack)))
