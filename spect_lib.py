@@ -23,9 +23,9 @@ import matplotlib.pyplot as plt
 #katcp_port=7147
 
 #files in which data will be dumped
-of_even_i = open("data/even_i.dat","wb")
+#of_even_i = open("data/even_i.dat","wb")
 
-of_odd_i = open("data/odd_i.dat","wb")
+#of_odd_i = open("data/odd_i.dat","wb")
 
 #of_even_q = open("lofasm_data/dat0709_even_q.dat","wb")
 #of_odd_q = open("lofasm_data/dat0709_odd_q.dat","wb")

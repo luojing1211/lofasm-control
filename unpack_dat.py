@@ -7,7 +7,9 @@ import struct,sys
 import numpy as np
 import ten_gbe_lib as tg
 
-
+class GeneralError:
+    def __init__(self):
+        print "General Error!"
 #############################################################3
 #Begin class:lofasm_packet
 class lofasm_packet:

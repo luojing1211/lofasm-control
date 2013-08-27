@@ -42,8 +42,8 @@ def config(fpga=''):
 
 
     
-    success = 0
-    while success == 0:
+    end_while_loop = 0
+    while end_while_loop == 0:
         try:
             print 'FPGA Registers: ', fpga.listdev()
             sleep(.5)
@@ -75,15 +75,15 @@ def config(fpga=''):
             sleep(.1)
             print fpga.read_uint('en_packetizer')
 
-            print "Setting sync_sel to ",
-            fpga.write_int('sync_sel',1)
-            sleep(.1)
-            print fpga.read_uint('sync_sel')
 
-            print "Setting sync_mux to "
-            fpga.write_int('sync_mux',1)
-            sleep(0.1)
-            print fpga.read_uint('sync_mux')
+            try:
+                print "Setting sync_mux to "
+                fpga.write_int('sync_mux',1)
+                sleep(0.1)
+                print fpga.read_uint('sync_mux')
+            except RuntimeError:
+                print 'writing to sync_mux failed'
+                pass
 
 
             print "Setting packet size to ",
@@ -96,10 +96,14 @@ def config(fpga=''):
             sleep(0.1)
             fpga.write_int('10gbe_rst',0)
             sleep(.1)
-
-            success = 1
+            
+            print "Enabling BBR"
+            fpga.write_int('en_bbr',1)
+            sleep(.1)
+            end_while_loop = 1
         except:
-            pass
+            if not bool(int(raw_input('there was an error...try again?'))):
+                end_while_loop = 1
 
 ######################
 def start_gbe(fpga=''):
@@ -153,7 +157,7 @@ def gbe_sitrep():
     print 'Unpacking TX packet stream'
     tx_data = []
     for i in range(0,tx_size):
-        data_64bit = struct.unpack('>Q',tx_bram_dmp['bram_msb'][(4*i):(4*i)+4]+tx_bram_dmp['bram_lsb    '][(4*i):(4*i)+4])[0]
+        data_64bit = struct.unpack('>Q',tx_bram_dmp['bram_msb'][(4*i):(4*i)+4]+tx_bram_dmp['bram_lsb'][(4*i):(4*i)+4])[0]
         oob_32bit = struct.unpack('>L',tx_bram_dmp['bram_oob'][(4*i):(4*i)+4])[0]
         print '[%4i]: data: %16X'%(i,data_64bit),
         ip_mask = (2**(8+5)) -(2**5)
