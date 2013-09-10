@@ -8,12 +8,17 @@ import unpack_dat as ud
 import numpy as np
 import lofasm_anal as la
 import matplotlib.pyplot as plt
+import logging
 
-#raw implementation of spect header
+
+
+
 def set_dev(fpga,dev,val):
     curr_val = fpga.read_int(dev)
     if curr_val is not val:
         fpga.write_int(dev,val)
+
+#raw implementation of spect header
 def get_spect_hdr():
     TELESCOPE = raw_input('Telescope name: ')
     MODE = 'spect'#raw_input('Mode: ')
@@ -205,11 +210,24 @@ def spect_config(fpga,acc_len=262144,gain=int(268416),rec=0):
     print 'SUCCESSFUL\n'
 
     print '-------------------------------'
-    print 'Setting digital gain to %i...' % gain
-    #fpga.write_int('gain',gain)
-    set_dev(fpga,'gain',gain)
+    print 'Setting I input gain to %i...' % gain
+    set_dev(fpga,'spect_gain_i',gain)
     print 'SUCCESSFUL\n'
   
+    print '-------------------------------'
+    print 'Setting Q input gain to %i...' % gain
+    set_dev(fpga,'spect_gain_q',gain)
+    print 'SUCCESSFUL\n'
+    
+    print '-------------------------------'
+    print 'Setting Re(Vi*Vq) gain to %i...' % gain
+    set_dev(fpga,'xpow_gain_real',gain)
+    print 'SUCCESSFUL\n'
+    
+    print '-------------------------------'
+    print 'Setting Im(Vi*Vq) input gain to %i...' % gain
+    set_dev(fpga,'xpow_gain_imag',gain)
+    print 'SUCCESSFUL\n'
     
     print '-------------------------------'
     print 'Setting sync_sel to 1...',
@@ -330,10 +348,10 @@ def get_spect_data(fpga):
     que_even = fpga.read('even_q',1024*4,0)
     que_odd = fpga.read('odd_q',1024*4,0)
     
-    sum_even = fpga.read('even_sum',1024*4,0)
-    sum_odd = fpga.read('odd_sum',1024*4,0)
-    dif_even = fpga.read('even_diff',1024*4,0)
-    dif_odd = fpga.read('odd_diff',1024*4,0)
+    sum_even = fpga.read('even_real',1024*4,0)
+    sum_odd = fpga.read('odd_real',1024*4,0)
+    dif_even = fpga.read('even_imag',1024*4,0)
+    dif_odd = fpga.read('odd_imag',1024*4,0)
     #sum_even = fpga.read('even_real',1024*4,0)
     #sum_odd = fpga.read('odd_real',1024*4,0)
     #dif_even = fpga.read('even_imag',1024*4,0)
@@ -344,10 +362,10 @@ def get_spect_data(fpga):
     que_0 = struct.unpack('>1024L',que_even)
     que_1 = struct.unpack('>1024L',que_odd)
 
-    sum_0 = struct.unpack('>1024L',sum_even)
-    sum_1 = struct.unpack('>1024L',sum_odd)
-    dif_0 = struct.unpack('>1024L',dif_even)
-    dif_1 = struct.unpack('>1024L',dif_odd)
+    sum_0 = struct.unpack('>1024l',sum_even)
+    sum_1 = struct.unpack('>1024l',sum_odd)
+    dif_0 = struct.unpack('>1024l',dif_even)
+    dif_1 = struct.unpack('>1024l',dif_odd)
     
     
     interleave_i = []
@@ -432,7 +450,7 @@ def run_spect(fpga,gain):
     plt.grid()
 
     
-    #sum  log scale plot
+    #Re(Vi*Vq)  log scale plot
     sum_plot_log = fig.add_subplot(2,4,3)
     plt.ylabel('Power (dBm)')
     plt.xticks(range(0,200,20))
@@ -444,7 +462,7 @@ def run_spect(fpga,gain):
     #plt.xlabel('Frequency (MHz)')
     plt.title('LoFASM spectrometer (sum): INIT')
 
-    #sum linear scale plot
+    #Re(Vi*Vq) linear scale plot
     sum_plot_lin = fig.add_subplot(2,4,7)
     plt.title('sum: Linear')
     #plt.xticks(range(0,200))
@@ -476,9 +494,9 @@ def run_spect(fpga,gain):
     line_Q_log, = Qplot_log.plot(freqs,10*np.log10(interleave_q),'k-')
     
     line_sum_lin, = sum_plot_lin.plot(freqs,interleave_sum,'k-')
-    line_dif_lin, = dif_plot_lin.plot(freqs,interleave_dif,'k-')
-    line_sum_log, = sum_plot_log.plot(freqs,10*np.log10(interleave_sum),'k-')
-    line_dif_log, = dif_plot_log.plot(freqs,10*np.log10(interleave_dif),'k-')
+    line_dif_lin, = dif_plot_lin.plot(freqs,interleave_dif,'k-') 
+    line_sum_log, = sum_plot_log.plot(freqs,10*np.log10(np.array(interleave_sum)-min(interleave_sum)+10**-20),'k.-')
+    line_dif_log, = dif_plot_log.plot(freqs,10*np.log10(np.array(interleave_dif)-min(interleave_dif)+10**-20),'k.-')
 
     raw_input('press enter to continue.')
     fig.canvas.draw()
@@ -502,8 +520,11 @@ def run_spect(fpga,gain):
             line_Q_log.set_ydata(10*np.log10(interleave_q))
             line_I_lin.set_ydata(interleave_i)
             line_Q_lin.set_ydata(interleave_q)
-            line_sum_log.set_ydata(10*np.log10(interleave_sum))
-            line_dif_log.set_ydata(10*np.log10(interleave_dif))
+            line_sum_log.set_ydata(10*np.log10( list(np.array(interleave_sum)+10**-20) ))
+            line_dif_log.set_ydata(10*np.log10( list(np.array(interleave_dif)+10**-20) ))
+            print interleave_i[256], interleave_q[256], interleave_sum[248]
+            print np.log10(interleave_i[256]), np.log10(interleave_q[256]), np.log10(interleave_sum[248])
+            
             line_sum_lin.set_ydata(interleave_sum)
             line_dif_lin.set_ydata(interleave_dif)
             
@@ -521,8 +542,11 @@ def run_spect(fpga,gain):
  
  
     except KeyboardInterrupt:
-        print 'LoFASM Controller has detected a KeyboardInterrupt!\nExiting now!'
-        exit()
+        try:
+            raw_input("Press Enter to unpause plot")
+        except Keyboardinterrupt:
+            print 'LoFASM Controller has detected a KeyboardInterrupt!\nExiting now!'
+            exit()
 
 def print_spect_HDR(HDR):
     header_fields = ["Telescope: ","Mode: ", "Observer: ", "NChan: ", "BW: ", "Center Freq.: ",
